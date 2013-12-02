@@ -57,6 +57,7 @@ let "N_backup_local_nofiles=0x20"
 load_default_config() {
   CONFIG_configfile="/etc/automysqlbackup/automysqlbackup.conf"
   CONFIG_backup_dir='/var/backup/db'
+  CONFIG_tmp_dir='/tmp'
   CONFIG_multicore='yes'
   CONFIG_multicore_threads=2
   CONFIG_do_monthly="01"
@@ -637,7 +638,10 @@ process_dbs() {
   }
 
   manifest_file="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/Manifest"
-  fname="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/${prefix}${name}_${datetimestamp}${midfix}${extension}"
+  # drew
+  # we are going to use a tmp dir first, then copy over after we are done.
+  fname="${CONFIG_tmp_dir}/${prefix}${name}_${datetimestamp}${midfix}${extension}"
+
 
   (( $CONFIG_debug )) && echo "DEBUG: process_dbs >> Setting manifest file to: ${manifest_file}" 
 
@@ -719,6 +723,10 @@ process_dbs() {
 		  mysqldump --user="${CONFIG_mysql_dump_username}" --password="${CONFIG_mysql_dump_password}" --host="${CONFIG_mysql_dump_host}" "${opt[@]}" "$@" > "$cfname";
 		  ;;
 		esac
+		# before we add the manifest, lets copy over the temp to the correct place.
+		fname="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/${prefix}${name}_${datetimestamp}${midfix}${extension}"
+		ncfname="$(mktemp "${fname%.sql}_"XXXXXXXX".sql${suffix}")"
+		mv cfname ncfname
 		add_manifest_entry "$manifest_file" "$cfname" "$pid" "$db" && parse_manifest "$manifest_file" && cp -al "$cfname" "${CONFIG_backup_dir}"/latest/ && echo "Generated master backup $cfname" && return 0 || return 1
 		# <- create master backup
 	  else
@@ -1724,7 +1732,8 @@ method_backup () {
 		echo "======================================================================"
 		echo "Backup local files. Doing this weekly on CONFIG_do_weekly."
 		echo
-		backup_local_files "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar"
+		backup_local_files "${CONFIG_tmp_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar"
+		cp "${CONFIG_tmp_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar" "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar" 
 		tmp_flags=$?; var=; 
 		if (( $? == 0 )); then
 		  echo "success!"
