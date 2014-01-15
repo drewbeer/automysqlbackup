@@ -57,7 +57,6 @@ let "N_backup_local_nofiles=0x20"
 load_default_config() {
   CONFIG_configfile="/etc/automysqlbackup/automysqlbackup.conf"
   CONFIG_backup_dir='/var/backup/db'
-  CONFIG_tmp_dir='/tmp'
   CONFIG_multicore='yes'
   CONFIG_multicore_threads=2
   CONFIG_do_monthly="01"
@@ -438,7 +437,7 @@ backup_local_files () {
 # @deps:	load_default_config
 parse_configuration () {
     # OPT string for use with mysqldump ( see man mysqldump )
-    opt=( '--quote-names' '--opt' )
+    opt=( '--quote-names' '--opt' '--skip-lock-tables' '--skip-add-locks' )
 
     # OPT string for use with mysql (see man mysql )
     mysql_opt=()
@@ -639,7 +638,6 @@ process_dbs() {
 
   manifest_file="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/Manifest"
   fname="${CONFIG_backup_dir}/${subfolder}${subsubfolder}/${prefix}${name}_${datetimestamp}${midfix}${extension}"
-
 
   (( $CONFIG_debug )) && echo "DEBUG: process_dbs >> Setting manifest file to: ${manifest_file}" 
 
@@ -1726,8 +1724,7 @@ method_backup () {
 		echo "======================================================================"
 		echo "Backup local files. Doing this weekly on CONFIG_do_weekly."
 		echo
-		backup_local_files "${CONFIG_tmp_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar"
-		mv "${CONFIG_tmp_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar" "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar" 
+		backup_local_files "${CONFIG_backup_dir}/backup_local_files/bcf_weekly_${datetimestamp}_${date_weekno}.tar"
 		tmp_flags=$?; var=; 
 		if (( $? == 0 )); then
 		  echo "success!"
@@ -1750,8 +1747,7 @@ method_backup () {
 
 		# monthly
 		if (( ${CONFIG_do_monthly} != 0 && (${date_day_of_month} == ${CONFIG_do_monthly} || $date_day_of_month == $date_lastday_of_this_month && $date_lastday_of_this_month < ${CONFIG_do_monthly}) )) && (shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/fullschema/fullschema_monthly_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m_${date_month}.sql${suffix}"); ((! ${#f[@]}))); then
-		  fullschema "${CONFIG_tmp_dir}/fullschema/fullschema_monthly_${datetimestamp}_${date_month}.sql"
-		  mv  "${CONFIG_tmp_dir}/fullschema/fullschema_monthly_${datetimestamp}_${date_month}.sql"  "${CONFIG_backup_dir}/fullschema/fullschema_monthly_${datetimestamp}_${date_month}.sql"
+		  fullschema "${CONFIG_backup_dir}/fullschema/fullschema_monthly_${datetimestamp}_${date_month}.sql"
 		  if (( $? == 0 )); then
 			echo "Rotating $(( ${CONFIG_rotation_monthly}/31 )) month backups for ${mdb}"
 			if (( $CONFIG_dryrun )); then
@@ -1769,8 +1765,7 @@ method_backup () {
 
 		# weekly
 		if [[ ${CONFIG_do_weekly} != 0 && ${date_dayno_of_week} = ${CONFIG_do_weekly} ]] && (shopt -s nullglob dotglob; f=("${CONFIG_backup_dir}/fullschema/fullschema_weekly_${date_stamp}_"[0-9][0-9]"h"[0-9][0-9]"m_${date_weekno}.sql${suffix}"); ((! ${#f[@]}))); then
-		  fullschema "${CONFIG_tmp_dir}/fullschema/fullschema_weekly_${datetimestamp}_${date_weekno}.sql"
-		  mv "${CONFIG_tmp_dir}/fullschema/fullschema_weekly_${datetimestamp}_${date_weekno}.sql" "${CONFIG_backup_dir}/fullschema/fullschema_weekly_${datetimestamp}_${date_weekno}.sql"
+		  fullschema "${CONFIG_backup_dir}/fullschema/fullschema_weekly_${datetimestamp}_${date_weekno}.sql"
 		  if (( $? == 0 )); then
 			echo "Rotating $(( ${CONFIG_rotation_monthly}/31 )) month backups for ${mdb}"
 			if (( $CONFIG_dryrun )); then
@@ -1787,8 +1782,7 @@ method_backup () {
 		fi
 
 		# daily
-		fullschema "${CONFIG_tmp_dir}/fullschema/fullschema_daily_${datetimestamp}_${date_day_of_week}.sql"
-		mv "${CONFIG_tmp_dir}/fullschema/fullschema_daily_${datetimestamp}_${date_day_of_week}.sql" "${CONFIG_backup_dir}/fullschema/fullschema_daily_${datetimestamp}_${date_day_of_week}.sql"
+		fullschema "${CONFIG_backup_dir}/fullschema/fullschema_daily_${datetimestamp}_${date_day_of_week}.sql"
 		if (( $? == 0 )); then
 		  echo "Rotating $(( ${CONFIG_rotation_monthly}/31 )) month backups for ${mdb}"
 		  if (( $CONFIG_dryrun )); then
